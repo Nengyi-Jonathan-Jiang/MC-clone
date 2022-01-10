@@ -1,5 +1,5 @@
 const {gl, canvas} = wgllib.fullscreenCanvas();
-const {core:{math:{toRad,toDeg,m4},Camera,Buffer,Program,events},createAnimation} = wgllib;
+const {core:{math:{toRad,toDeg,m4},Camera,Buffer,VertexArrayObject,Program,events},createAnimation} = wgllib;
 const {sin,cos,tan,asin,acos,atan,min,max,sqrt,pow,PI,random} = Math;
 
 const CLEAR_COLOR = [212, 248, 255];
@@ -33,6 +33,13 @@ void main(void) {
 
 
 var texture = new wgllib.core.Texture(gl,document.getElementById("atlas").src);
+
+var VAO = new VertexArrayObject(gl);
+VAO.bind();
+var VBO = new Buffer(gl);
+VBO.bind();
+VAO.vertexAttribPointer(VBO, shaderProg.getAttribLoc("a_pos"), "FLOAT", 3, 24, 0);
+VAO.vertexAttribPointer(VBO, shaderProg.getAttribLoc("a_tex"), "FLOAT", 3, 24, 12);
 
 
 createAnimation((currTime,elapsedTime)=>{

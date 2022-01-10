@@ -124,7 +124,6 @@ var wgllib = (_=>
 		return {copy: copy,lookAt: lookAt,addVectors: addVectors,subtractVectors: subtractVectors,scaleVector: scaleVector,distance: distance,distanceSq: distanceSq,normalize: normalize,compose: compose,cross: cross,decompose: decompose,dot: dot,identity: identity,transpose: transpose,length: length,lengthSq: lengthSq,orthographic: orthographic,frustum: frustum,perspective: perspective,translation: translation,translate: translate,xRotation: xRotation,yRotation: yRotation,zRotation: zRotation,xRotate: xRotate,yRotate: yRotate,zRotate: zRotate,axisRotation: axisRotation,axisRotate: axisRotate,scaling: scaling,scale: scale,multiply: multiply,inverse: inverse,transformVector: transformVector,transformPoint: transformPoint,transformDirection: transformDirection,transformNormal: transformNormal}
 	})();
   
-  
     //Core
     class Texture{
         /**
