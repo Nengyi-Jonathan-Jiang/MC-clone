@@ -32,10 +32,10 @@ void main(void) {
 `);
 
 
-
+var texture = new wgllib.core.Texture(gl,document.getElementById("atlas").src);
 
 
 createAnimation((currTime,elapsedTime)=>{
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
+
 })
