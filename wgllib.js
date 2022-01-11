@@ -450,9 +450,12 @@ var wgllib = (_=>
             this.facet = "501054|125652|69596A|849594|D9EAE9|9C8C9D".split("|").map(i=>i.split("").map(j=>Number.parseInt(j,16)).map(j=>[((j>>2)&3)/atlasWidth,(j&3)/atlasHeight]));
         }
         getPos(face,vertex,position){return this.facev[face][vertex].map((s,i)=>s + position[i])}
-        getTex(face,vertex,atlas_pos){return [
+        getTex(face,vertex,atlas_pos){return Array.isArray(atlas_pos) ? [
             this.facet[face][vertex][0] / 3 + atlas_pos[0] / this.atlasWidth,
             this.facet[face][vertex][1] / 2 + atlas_pos[1] / this.atlasHeight
+        ] : [
+            this.facet[face][vertex][0] / 3 + Math.floor(atlas_pos / this.atlasHeight) / this.atlasWidth,
+            this.facet[face][vertex][1] / 2 + (atlas_pos % this.atlasHeight) / this.atlasHeight
         ]}
     }
     return {
