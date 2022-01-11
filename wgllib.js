@@ -133,6 +133,7 @@ var wgllib = (_=>
         constructor(gl,src){
             const texture = gl.createTexture();
             this.texture = texture;
+            this.gl = gl;
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
             const image = new Image();
@@ -148,7 +149,7 @@ var wgllib = (_=>
             });
         }
         bind(){
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
         }
     }
     class Buffer{
@@ -437,8 +438,8 @@ var wgllib = (_=>
             if(wgllib.core.events.keysDown['arrowdown']) a -= rStep;
             if(wgllib.core.events.keysDown['arrowleft']) b += rStep;
             if(wgllib.core.events.keysDown['arrowright'])b -= rStep;
-            camera.rotate(a,b);
-            camera.move(x,y,z);
+            this.camera.rotate(a,b);
+            this.camera.move(x,y,z);
         }
     }
     //Utility
