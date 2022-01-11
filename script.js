@@ -1,13 +1,10 @@
-// const {gl, canvas} = wgllib.fullscreenCanvas();
-// const {core:{math:{toRad,toDeg,m4},Camera,Buffer,VertexArrayObject,Program,Texture,events},createAnimation,gameUtil:{FirstPersonController}} = wgllib;
-// const {sin,cos,tan,asin,acos,atan,min,max,sqrt,pow,PI,random} = Math;
-// events.init();
+const {gl, canvas} = wgllib.fullscreenCanvas();
+const {core:{math:{toRad,toDeg,m4},Camera,Buffer,VertexArrayObject,Program,Texture,events},createAnimation,gameUtil:{FirstPersonController,CubeMeshGenerator}} = wgllib;
+const {sin,cos,tan,asin,acos,atan,min,max,sqrt,pow,PI,random} = Math;
+events.init();
 
-// gl.disable(gl.CULL_FACE);
-
-// const CLEAR_COLOR = [212, 248, 255];
-// gl.clearColor(...CLEAR_COLOR.map(i=>i/255),1.0);
-
+const CLEAR_COLOR = [212, 248, 255];
+gl.clearColor(...CLEAR_COLOR.map(i=>i/255),1.0);
 
 // const shaderProgram = new Program(gl,`
 // attribute vec3 a_pos;
@@ -82,10 +79,6 @@
 //     camera.draw(shaderProgram, VertexArrayObject, gl.TRIANGLES, 0, 2);
 // })
 
-wgllib.core.events.init();
-const {canvas,gl} = wgllib.fullscreenCanvas(false);
-gl.clearColor(0.8,1,1,1);
-
 const vertexCode = `
 attribute vec3 a_position;
 attribute vec2 a_texcoords;
@@ -108,13 +101,13 @@ void main(void) {
     gl_FragColor = texture2D(u_texture, vTextureCoord);
 }
 `
-var program = new wgllib.core.Program(gl,vertexCode,fragmentCode);
-var texture = new wgllib.core.Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
+var program = new Program(gl,vertexCode,fragmentCode);
+var texture = new Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
 
-var fieldOfViewRadians = wgllib.core.math.toRad(70);
+var fieldOfViewRadians = toRad(70);
 
 // Create VBO
-var VBO = new wgllib.core.Buffer(gl);
+var VBO = new Buffer(gl);
 const positions = [
     [0,0,0,1],[0,1,0,5],[0,-2,0,9],[1,0,0,4],[3,0,0,8],[0,-5,0,3],
     [0,0,1,2],[0,1,1,6],[0,-2,1,1],[1,0,1,5],[3,0,1,9],[0,-5,1,4],
@@ -122,7 +115,7 @@ const positions = [
     [0,0,3,4],[0,1,3,8],[0,-2,3,3],[1,0,3,7],[3,0,3,2],[0,-5,3,6],
 ];
 //Fill VBO data
-const cubeMeshGenerator = new wgllib.gameUtil.CubeMeshGenerator(16,16);
+const cubeMeshGenerator = new CubeMeshGenerator(16,16);
 {
     let data = new Float32Array(180 * positions.length);
     for(let i = 0; i < positions.length; i++){
@@ -142,8 +135,8 @@ const cubeMeshGenerator = new wgllib.gameUtil.CubeMeshGenerator(16,16);
 program.vertexAttribPointer(VBO,"a_position", "FLOAT",3,20,0);
 program.vertexAttribPointer(VBO,"a_texcoords","FLOAT",2,20,12);
 
-const camera = new wgllib.core.Camera(gl,[0.5892,0.3214,-8.432],[0,0.3241]);
-const fpc = new wgllib.gameUtil.FirstPersonController(camera);
+const camera = new Camera(gl,[0.5892,0.3214,-8.432],[0,0.3241]);
+const fpc = new FirstPersonController(camera);
 // Draw the scene.
 function drawScene(now, deltaTime) {
     camera.recompute_projection(fieldOfViewRadians);
