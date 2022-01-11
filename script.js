@@ -109,7 +109,7 @@ void main(void) {
 }
 `
 var program = new wgllib.core.Program(gl,vertexCode,fragmentCode);
-var texture = new wgllib.core.Texture(gl,document.getElementById("atlas").src);
+var texture = new wgllib.core.Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
 
 var fieldOfViewRadians = wgllib.core.math.toRad(70);
 
@@ -138,6 +138,7 @@ const cubeMeshGenerator = new wgllib.gameUtil.CubeMeshGenerator(16,16);
     VBO.setData(data);
 }
 //Configure vertex attributes
+
 program.vertexAttribPointer(VBO,"a_position", "FLOAT",3,20,0);
 program.vertexAttribPointer(VBO,"a_texcoords","FLOAT",2,20,12);
 
