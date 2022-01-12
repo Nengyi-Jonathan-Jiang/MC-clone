@@ -16,7 +16,7 @@ class PQ {
         while (index > 0) {
             let parentIndex = Math.floor((index - 1) / 2);
             let parent = this.values[parentIndex];
-            if (!this.comp(parent, current)) {
+            if (this.comp(parent, current)) {
                 this.values[parentIndex] = current;
                 this.values[index] = parent;
                 index = parentIndex;
@@ -40,13 +40,13 @@ class PQ {
             let swap = null;
             if (leftChildIndex < length) {
                 leftChild = this.values[leftChildIndex];
-                if (this.comp(leftChild, current)) swap = leftChildIndex;
+                if (!this.comp(leftChild, current)) swap = leftChildIndex;
             }
             if (rightChildIndex < length) {
                 rightChild = this.values[rightChildIndex];
                 if (
-                    (swap === null && this.comp(rightChild,current)) ||
-                    (swap !== null && this.comp(rightChild,leftChild))
+                    (swap === null && !this.comp(rightChild,current)) ||
+                    (swap !== null && !this.comp(rightChild,leftChild))
                 )
                 swap = rightChildIndex;
             }
