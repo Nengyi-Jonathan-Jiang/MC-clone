@@ -1,7 +1,7 @@
 /**@template T*/
 class PQ {
-    /** @param {(a:T,b:T)=>boolean} comp should return true if a has strictly greater priority than b @param {Iterable<T>} values */
-    constructor(comp,values) {
+    /** @param {(a:T,b:T)=>boolean} [comp] should return true if a has strictly greater priority than b @param {Iterable<T>} [values] */
+    constructor(comp=(a,b)=>a>b,values) {
         this.comp = comp;
         /** @type {T[]} */
         this.values = [];
