@@ -155,10 +155,13 @@ var wgllib = (_=>
     class Buffer{
         /**
          * @param {WebGL2RenderingContext} gl
+         * @param {ArrayBufferView} [data]
          */
-        constructor(gl){
+        constructor(gl, data){
             this.gl = gl;
             this.buffer = gl.createBuffer();
+            this.bytes = 0;
+            if(data) this.setData(data);
         }
         /**
          * @param {ArrayBufferView} data - data to load into buffer
@@ -167,6 +170,7 @@ var wgllib = (_=>
         setData(data,dynamic_data = true) {
             const gl = this.gl;
             this.bind();
+            this.bytes = data.buffer.byteLength;
             gl.bufferData(gl.ARRAY_BUFFER,data,dynamic_data ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW);
         }
         /**
@@ -304,9 +308,31 @@ var wgllib = (_=>
         }
         move(x = 0,y = 0,z = 0){
             if(x||y||z){
-                this.pos[0] += Math.sin(this.rot[1]) * z - Math.cos(this.rot[1]) * x;
-                this.pos[2] -= Math.sin(this.rot[1]) * x + Math.cos(this.rot[1]) * z;
-                this.pos[1] += y;
+                this.pos[0] += Math.cos(this.rot[1]) * x - Math.sin(this.rot[1]) * z;
+                this.pos[2] += Math.cos(this.rot[1]) * z + Math.sin(this.rot[1]) * x;
+                this.pos[1] -= y;
+                this.isCamMatrixDirty = true;
+            }
+        }
+        get rotation(){
+            return this.rot;
+        }
+        set rotation([a,b]){
+            a = Math.min(Math.max(a,-Math.PI/2),Math.PI/2);
+            if(a != this.rot[0] || b != this.rot[1]){
+                this.rot[0] = a;
+                this.rot[1] = b;
+                this.isCamMatrixDirty = true;
+            }
+        }
+        get position(){
+            return this.pos.map(i=>-i);
+        }
+        set position([x,y,z]){
+            if(x != this.pos[0] || y != this.pos[1] || z != this.pos[2]){
+                this.pos[0] = -x;
+                this.pos[1] = -y;
+                this.pos[2] = -z;
                 this.isCamMatrixDirty = true;
             }
         }
@@ -420,6 +446,7 @@ var wgllib = (_=>
     }
 
     class FirstPersonController{
+        /**@param {Camera} camera*/
         constructor(camera,movementSpeed = 5,rotationSpeed = 2){
             this.camera = camera;
             this.movementSpeed = movementSpeed;
@@ -428,16 +455,21 @@ var wgllib = (_=>
         update(deltaTime){
             const mStep = this.movementSpeed * deltaTime,rStep = this.rotationSpeed * deltaTime;
             let x = 0, y = 0, z = 0, a = 0, b = 0;
-            if(wgllib.core.events.keysDown['a'])         x += mStep;
-            if(wgllib.core.events.keysDown['d'])         x -= mStep;
-            if(wgllib.core.events.keysDown['w'])         z += mStep;
-            if(wgllib.core.events.keysDown['s'])         z -= mStep;
-            if(wgllib.core.events.keysDown[' '])         y += mStep;
-            if(wgllib.core.events.keysDown['shift'])     y -= mStep;
+            if(wgllib.core.events.keysDown['w'])         z -= mStep;
+            if(wgllib.core.events.keysDown['a'])         x -= mStep;
+            if(wgllib.core.events.keysDown['s'])         z += mStep;
+            if(wgllib.core.events.keysDown['d'])         x += mStep;
+            if(wgllib.core.events.keysDown[' '])         y -= mStep;
+            if(wgllib.core.events.keysDown['shift'])     y += mStep;
             if(wgllib.core.events.keysDown['arrowup'])   a += rStep;
             if(wgllib.core.events.keysDown['arrowdown']) a -= rStep;
             if(wgllib.core.events.keysDown['arrowleft']) b += rStep;
             if(wgllib.core.events.keysDown['arrowright'])b -= rStep;
+            // this.camera.rotation[0] += a;
+            // this.camera.rotation[1] += b;
+            // this.camera.position[0] += x;
+            // this.camera.position[1] += y;
+            // this.camera.position[2] += z;
             this.camera.rotate(a,b);
             this.camera.move(x,y,z);
         }
