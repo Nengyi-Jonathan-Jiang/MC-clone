@@ -45,24 +45,20 @@ class Chunk{
                 if(this.getBlockIdAt(x,y,z) == 0){
                     this.setBlockLightAt(x,y,z,255);
                     if(this.getBlockIdAt(x,y - 1,z) == 0)
-                        queue.push([x,y - 1,z,255,x,y,z]);
+                        queue.push([x,y - 1,z,255]);
                 }
             }
         }
         
         let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 6;
         while(++i < MAX_UPDATES && !queue.empty()){
-            let [x,y,z,lvl,fx,fy,fz] = queue.pop();
-
+            let [x,y,z,lvl] = queue.pop();
             if(lvl <= this.getBlockLightAt(x,y,z)) continue;
             this.setBlockLightAt(x,y,z,lvl);
-
-            // console.log(x,y,z,lvl,"from",fx,fy,fz);
-            // console.log(".");
             for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
                 if(this._inRange(xx,yy,zz) && this.getBlockIdAt(xx,yy,zz) == 0 && ll > this.getBlockLightAt(xx,yy,zz))
-                    queue.push([xx,yy,zz,ll,x,y,z]);
+                    queue.push([xx,yy,zz,ll]);
             }
         }
         if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
@@ -71,16 +67,16 @@ class Chunk{
     getMesh(){
         let numBlocks = this.blockIds.map(i=>i==0?0:1).reduce((a,b)=>a+b);
         let dat = new Float32Array(positions.length * 216);
-    let i = 0;
-    for(let [x,y,z,blockId,light] of positions){
-        for(let face = 0; face < 6; face++){
-            for(let vertex = 0; vertex < 6; vertex++){
-                [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
-                [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
-                dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
+        let i = 0;
+        for(let [x,y,z,blockId,light] of positions){
+            for(let face = 0; face < 6; face++){
+                for(let vertex = 0; vertex < 6; vertex++){
+                    [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
+                    [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
+                    dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
+                }
             }
         }
-    }
     }
     
     /** @param {[number,number,number][]} positions */
