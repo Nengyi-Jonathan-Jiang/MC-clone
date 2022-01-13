@@ -45,18 +45,16 @@ public:
 
             if (leftChildIndex < length) {
                 leftChild = values[leftChildIndex];
-                if (comp(leftChild, current)) swap = leftChildIndex;
+                if (leftChild > current) swap = leftChildIndex;
             }
             if (rightChildIndex < length) {
                 rightChild = values[rightChildIndex];
-                if (
-                    (swap === null && comp(rightChild,current)) ||
-                    (swap !== null && comp(rightChild,leftChild))
-                )
-                swap = rightChildIndex;
+                if ((swap === null && rightChild > current)) || (swap !== null && rightChild > leftChild)))
+                    swap = rightChildIndex;
             }
 
             if (swap == -1) break;
+            
             values[index] = values[swap];
             values[swap] = current;
             index = swap;
