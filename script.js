@@ -7,7 +7,7 @@ var VBO = renderer.VBO;
 
 class Chunk{
     static WIDTH = 16; 
-    static HEIGHT = 8;
+    static HEIGHT = 256;
     static DEPTH = 16;
     static TOTAL_BLOCKS = Chunk.WIDTH * Chunk.HEIGHT * Chunk.DEPTH;
 

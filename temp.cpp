@@ -5,7 +5,7 @@ using namespace std;
 
 template<class T>
 class PriorityQueue{
-    vector<T> vec;
+    vector<T> values;
 
     PriorityQueue(){/*We dont need to initialize anything*/}
 
@@ -65,4 +65,4 @@ public:
     bool empty(){
         return values.empty();
     }
-}
+};
