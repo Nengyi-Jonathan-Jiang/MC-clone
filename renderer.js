@@ -5,7 +5,8 @@ const renderer = (function(){
     events.init();
     // events.init();
     
-    const CLEAR_COLOR = [212, 248, 255];
+    // const CLEAR_COLOR = [212, 248, 255];
+    const CLEAR_COLOR = [21, 24, 25];
     gl.clearColor(...CLEAR_COLOR.map(i=>i/255),1.0);
     
     const shaderProgram = new Program(gl,`

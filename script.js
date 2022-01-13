@@ -7,7 +7,7 @@ var VBO = renderer.VBO;
 
 class Chunk{
     static WIDTH = 16; 
-    static HEIGHT = 256;
+    static HEIGHT = 8;
     static DEPTH = 16;
     static TOTAL_BLOCKS = Chunk.WIDTH * Chunk.HEIGHT * Chunk.DEPTH;
 
@@ -39,25 +39,48 @@ class Chunk{
         this.blockLight.fill(0);
 
         /** @type {PriorityQueue<[number,number,number,number]>*/
-        let queue = new PriorityQueue((a,b) => a[1] > b[1]);
-        for(let x = 0, y = HEIGHT - 1; x < WIDTH; x++)
-            for(let z = 0; z < DEPTH; z++)
-                if(this.getBlockIdAt(x,y,z) == 0)
-                    this.setBlockLightAt(x,y,z,255),queue.push([x,y,z,255]);
+        let queue = new PriorityQueue((a,b) => a[3] > b[3]);
+        for(let x = 0, y = HEIGHT - 1; x < WIDTH; x++){
+            for(let z = 0; z < DEPTH; z++){
+                if(this.getBlockIdAt(x,y,z) == 0){
+                    this.setBlockLightAt(x,y,z,255);
+                    if(this.getBlockIdAt(x,y - 1,z) == 0)
+                        queue.push([x,y - 1,z,255,x,y,z]);
+                }
+            }
+        }
         
-        let x,y,z,lvl;
-        let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 2;
+        let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 6;
         while(++i < MAX_UPDATES && !queue.empty()){
-            [x,y,z,lvl] = queue.pop();
-            console.log(x,y,z,lvl);
+            let [x,y,z,lvl,fx,fy,fz] = queue.pop();
+
+            if(lvl <= this.getBlockLightAt(x,y,z)) continue;
             this.setBlockLightAt(x,y,z,lvl);
-            if(y > 0          && this.getBlockIdAt(x,y - 1,z) == 0 && this.getBlockLightAt(x,y - 1,z) < lvl -  0) queue.push([x,y-1,z,lvl -  0]);
-            if(x > 0          && this.getBlockIdAt(x - 1,y,z) == 0 && this.getBlockLightAt(x - 1,y,z) < lvl - 16) queue.push([x-1,y,z,lvl - 16]);
-            if(x < WIDTH - 1  && this.getBlockIdAt(x + 1,y,z) == 0 && this.getBlockLightAt(x + 1,y,z) < lvl - 16) queue.push([x+1,y,z,lvl - 16]);
-            if(z > 0          && this.getBlockIdAt(x,y,z - 1) == 0 && this.getBlockLightAt(x,y,z - 1) < lvl - 16) queue.push([x,y,z-1,lvl - 16]);
-            if(z < DEPTH - 1  && this.getBlockIdAt(x,y,z + 1) == 0 && this.getBlockLightAt(x,y,z + 1) < lvl - 16) queue.push([x,y,z+1,lvl - 16]);
+
+            // console.log(x,y,z,lvl,"from",fx,fy,fz);
+            // console.log(".");
+            for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
+                let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
+                if(this._inRange(xx,yy,zz) && this.getBlockIdAt(xx,yy,zz) == 0 && ll > this.getBlockLightAt(xx,yy,zz))
+                    queue.push([xx,yy,zz,ll,x,y,z]);
+            }
         }
         if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+    }
+
+    getMesh(){
+        let numBlocks = this.blockIds.map(i=>i==0?0:1).reduce((a,b)=>a+b);
+        let dat = new Float32Array(positions.length * 216);
+    let i = 0;
+    for(let [x,y,z,blockId,light] of positions){
+        for(let face = 0; face < 6; face++){
+            for(let vertex = 0; vertex < 6; vertex++){
+                [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
+                [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
+                dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
+            }
+        }
+    }
     }
     
     /** @param {[number,number,number][]} positions */
@@ -66,16 +89,12 @@ class Chunk{
     }
 
     logLighting(){
-        function f(n){
-            return "012345.:OM#@░▒▓█"[Math.floor(n / 16)].repeat(2);
-        }
-        for(let y = Chunk.HEIGHT; y --> 0;)
-            console.log("%c" + new Array(Chunk.WIDTH).fill(0).map((_,x)=>new Array(Chunk.DEPTH).fill(0).map((_,z)=>this.getBlockLightAt(x,y,z)).map(f).join("")).join("\n"),
-            "font-family:monospace;color:black"
-            )
+        function f(n){return " .:-=+*Q#M%@░▒▓█"[Math.floor(n / 16)].repeat(2)}
+        for(let y = Chunk.HEIGHT; y --> 0;) console.log("%c" + new Array(Chunk.WIDTH).fill(0).map((_,x)=>new Array(Chunk.DEPTH).fill(0).map((_,z)=>this.getBlockLightAt(x,y,z)).map(f).join("")).join("\n"),"font-family:monospace;")
     }
 
-    _mapPos(x,y,z){return (x * Chunk.WIDTH + z) * Chunk.DEPTH + y}
+    _mapPos(x,y,z){return (x * Chunk.DEPTH + z) * Chunk.HEIGHT + y}
+    _inRange(x,y,z){return x>=0&&y>=0&&z>=0&&x<Chunk.WIDTH&&y<Chunk.HEIGHT&&z<Chunk.DEPTH}
 
     getBlockIdAt(x,y,z){return this.blockIds[this._mapPos(x,y,z)]}
     setBlockIdAt(x, y, z, id) {this.blockIds[this._mapPos(x,y,z)] = id}
