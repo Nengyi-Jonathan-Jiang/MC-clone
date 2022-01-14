@@ -33,7 +33,7 @@ class Chunk{
         this.updateAllLighting();
     }
 
-    updateAllLighting(){
+    updateAllLighting(log=true){
         const {WIDTH, HEIGHT, DEPTH, TOTAL_BLOCKS} = Chunk;
 
         this.blockLight.fill(0);
@@ -63,18 +63,19 @@ class Chunk{
                     queue.push([xx,yy,zz,ll,x,y,z]);
             }
         }
-        if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+        
+        if(log)
+            if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+            else console.log("Updated lighting in " + i + steps);
     }
 
     
     /** @param {[number,number,number][]} positions */
-    updateLighting(positions){
+    updateLighting(positions, log=true){
         const {WIDTH, HEIGHT, DEPTH, TOTAL_BLOCKS} = Chunk;
 
         this.blockLight.fill(0);
 
-        /** @type {PriorityQueue<[number,number,number,number]>*/
-        let queue = new PriorityQueue((a,b) => a[3] > b[3]);
         for(let x = 0, y = HEIGHT - 1; x < WIDTH; x++){
             for(let z = 0; z < DEPTH; z++){
                 if(this.getBlockIdAt(x,y,z) == 0){
@@ -96,7 +97,10 @@ class Chunk{
                     queue.push([xx,yy,zz,ll]);
             }
         }
-        if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+
+        if(log)
+            if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+            else console.log("Updated lighting in " + i + steps);
     }
 
     getMesh(){
