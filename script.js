@@ -7,7 +7,7 @@ var VBO = renderer.VBO;
 
 class Chunk{
     static WIDTH = 16; 
-    static HEIGHT = 8;
+    static HEIGHT = 256;
     static DEPTH = 16;
     static TOTAL_BLOCKS = Chunk.WIDTH * Chunk.HEIGHT * Chunk.DEPTH;
 
@@ -45,7 +45,7 @@ class Chunk{
                 if(this.getBlockIdAt(x,y,z) == 0){
                     this.setBlockLightAt(x,y,z,255);
                     if(this.getBlockIdAt(x,y - 1,z) == 0)
-                        queue.push([x,y - 1,z,255,x,y,z]);
+                        queue.push([x,y - 1,z,255]);
                 }
             }
         }
@@ -87,15 +87,13 @@ class Chunk{
         
         let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 256;
         while(++i < MAX_UPDATES && !queue.empty()){
-            let [x,y,z,lvl,fx,fy,fz] = queue.pop();
-
+            let [x,y,z,lvl] = queue.pop();
             if(lvl <= this.getBlockLightAt(x,y,z)) continue;
             this.setBlockLightAt(x,y,z,lvl);
-
             for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
                 if(this._inRange(xx,yy,zz) && this.getBlockIdAt(xx,yy,zz) == 0 && ll > this.getBlockLightAt(xx,yy,zz))
-                    queue.push([xx,yy,zz,ll,x,y,z]);
+                    queue.push([xx,yy,zz,ll]);
             }
         }
         if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
