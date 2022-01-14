@@ -11,6 +11,8 @@ class Chunk{
     static DEPTH = 16;
     static TOTAL_BLOCKS = Chunk.WIDTH * Chunk.HEIGHT * Chunk.DEPTH;
 
+    static MESH_GEN = new wgllib.gameUtil.CubeMeshGenerator(16, 16);
+
     /** @param {[number,number,number,number][]} [positions] */
     constructor(positions){
         this.blockIds =  new Uint16Array(Chunk.TOTAL_BLOCKS);
@@ -46,8 +48,8 @@ class Chunk{
             for(let z = 0; z < DEPTH; z++){
                 if(this.getBlockIdAt(x,y,z) == 0){
                     this.setBlockLightAt(x,y,z,255);
-                    this.setBlockLightFromAt(x,y,z,255,255,255);
-                    queue.push([x,y - 1,z,255]);
+                    this.setBlockLightFromAt(x,y,z,x,y,z);
+                    queue.push([x,y,z,255]);
                 }
             }
         }
@@ -56,13 +58,15 @@ class Chunk{
         while(++i < MAX_UPDATES && !queue.empty()){
             let [x,y,z,lvl] = queue.pop();
 
-            for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
+            const C = 32;
+
+            for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,0],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
                 if(!this._inRange(xx,yy,zz)) continue;
                 if(this.getBlockIdAt(xx,yy,zz) != 0) continue;
                 if(ll > this.getBlockLightAt(xx,yy,zz))
                     this.setBlockLightAt(xx,yy,zz,ll),
-                    this.setBlockLightFromAt(xx,yy,zz,[x,y,z]),
+                    this.setBlockLightFromAt(xx,yy,zz,x,y,z),
                     queue.push([xx,yy,zz,ll]);
             }
         }
@@ -105,18 +109,50 @@ class Chunk{
     }
 
     getMesh(){
-        let numBlocks = this.blockIds.map(i=>i==0?0:1).reduce((a,b)=>a+b);
-        let dat = new Float32Array(numBlocks * 216);
-        let i = 0;
-        for(let [x,y,z,blockId,light] of positions){
-            for(let face = 0; face < 6; face++){
-                for(let vertex = 0; vertex < 6; vertex++){
-                    [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
-                    [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
-                    dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
+        let {WIDTH,HEIGHT,DEPTH,TOTAL_BLOCKS,MESH_GEN} = Chunk;
+
+        let faceCount = 0;
+        for(let x = 0; x < WIDTH; x++){
+            for(let y = 0; y < HEIGHT; y++){
+                for(let z = 0; z < DEPTH; z++){
+                    if(this.getBlockIdAt(x,y,z) == 0) continue;
+                    for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]]){
+                        let [xx,yy,zz] = [x + dx, y + dy, z + dz];
+                        if(!this._inRange(xx,yy,zz) || this.getBlockIdAt(xx,yy,zz) == 0){
+                            faceCount++;
+                        }
+                    }
                 }
             }
         }
+
+        const vertCount = faceCount * 6;
+        let data = new Float32Array(vertCount * 6);
+        let i = 0;
+        for(let x = 0; x < WIDTH; x++){
+            for(let y = 0; y < HEIGHT; y++){
+                for(let z = 0; z < DEPTH; z++){
+                    const blockId = this.getBlockIdAt(x,y,z);
+                    if(blockId == 0) continue;
+
+                    for(let face = 0; face < 6; face++){
+                        let [dx,dy,dz] = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]][face];
+                        let [xx,yy,zz] = [x + dx, y + dy, z + dz];
+                        if(!this._inRange(xx,yy,zz) || this.getBlockIdAt(xx,yy,zz) == 0){
+                            let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
+
+                            for(let vertex = 0; vertex < 6; vertex++){
+                                [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x,y,z]);
+                                [data[i++],data[i++]] = MESH_GEN.getTex(face, vertex, blockId);
+                                data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * faceLight / 255;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return data;
     }
 
     logLighting(){
@@ -141,38 +177,37 @@ class Chunk{
     setBlockDataAt(x,y,z, data) {this.blockData[this._mapPos(x,y,z)] = data}
     getBlockLightAt(x,y,z){return this.blockLight[this._mapPos(x,y,z)]}
     setBlockLightAt(x,y,z, light){this.blockLight[this._mapPos(x,y,z)] = light}
-    getBlockLightFromAt(x,y,z){return [...this.blockLightFrom.slice(this._mapPos(x,y,z), this._mapPos(x,y,z) + 3)]}
-    setBlockLightFromAt(x,y,z,fx,fy,fz) {this.blockLightFrom.set([fx,fy,fz], this._mapPos(x,y,z))}
+    getBlockLightFromAt(x,y,z){return [...this.blockLightFrom.slice(this._mapPos(x,y,z) * 3, this._mapPos(x,y,z) * 3 + 3)]}
+    setBlockLightFromAt(x,y,z,fx,fy,fz) {this.blockLightFrom.set([fx,fy,fz], this._mapPos(x,y,z) * 3)}
     getFaceLightAt(x,y,z,face){return this.blockLight[this._mapPos(x,y,z) * 6 + face]}
     setFaceLightAt(x,y,z,face, light){this.blockLight[this._mapPos(x,y,z) * 6 + face] = light}
 }
 
-{
-    let meshGen = new wgllib.gameUtil.CubeMeshGenerator(16, 16);
+let positions = [
+    [0,0,0, 1], [1,0,0, 2], [2,0,0, 3], [3,0,0, 4], 
+    [0,0,1, 5], [1,0,1, 6], [2,0,1, 7], [3,0,1, 8], 
+    [0,0,2, 9], [1,0,2,10], [2,0,2,11], [3,0,2,12], 
 
-    let positions = [
-        [0,0,0, 1], [1,0,0, 2], [2,0,0, 3], [3,0,0, 4], 
-        [0,0,1, 5], [1,0,1, 6], [2,0,1, 7], [3,0,1, 8], 
-        [0,0,2, 9], [1,0,2,10], [2,0,2,11], [3,0,2,12], 
+    [0,1,0, 3], [0,2,0, 3], [0,3,0, 3], [1,3,0, 3],
 
-        [0,1,0, 3], [0,2,0, 3], [0,3,0, 3], [1,3,0, 3],
+    [3,1,2, 3], [3,1,1, 3], [2,1,2, 3], 
+]
 
-        [3,1,2, 3], [3,1,1, 3], [2,1,2, 3], 
-    ]
-    
-    let dat = new Float32Array(positions.length * 216);
-    let i = 0;
-    for(let [x,y,z,blockId,light] of positions){
-        for(let face = 0; face < 6; face++){
-            for(let vertex = 0; vertex < 6; vertex++){
-                [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
-                [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
-                dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
-            }
-        }
-    }
-    VBO.setData(dat);
-}
+let c = new Chunk(positions);
+
+// let dat = new Float32Array(positions.length * 216);
+// let i = 0;
+// for(let [x,y,z,blockId,light] of positions){
+//     for(let face = 0; face < 6; face++){
+//         for(let vertex = 0; vertex < 6; vertex++){
+//             [dat[i++],dat[i++],dat[i++]] = meshGen.getPos(face,vertex,[x,y,z]);
+//             [dat[i++],dat[i++]] = meshGen.getTex(face, vertex, blockId);
+//             dat[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * (1 - (light == undefined ? 0 : light[face]));
+//         }
+//     }
+// }
+// VBO.setData(dat);
+VBO.setData(c.getMesh());
 
 var control = new wgllib.gameUtil.FirstPersonController(renderer.camera);
 
