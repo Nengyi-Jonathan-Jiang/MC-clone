@@ -15,17 +15,32 @@ var VBO = renderer.VBO;
 //     [3,1,2, 2], [3,1,1, 2], [2,1,2, 2], 
 // ]
 
-let positions = new Array(1 << 12).fill(0).map(i=>[
-    ~~(Math.random() * 16), ~~(Math.random() * 32), ~~(Math.random() * 16), 2
-])
-positions.forEach(i=>{
-    for(let j of positions){
-        if(j[0] == i[0] && j[2] == i[2] && j[1] == i[1] + 1){
-            i[3] = 1;
-            break;
+// let positions = new Array(1 << 12).fill(0).map(i=>[
+//     ~~(Math.random() * 16), ~~(Math.random() * 32), ~~(Math.random() * 16), 2
+// ])
+// positions.forEach(i=>{
+//     for(let j of positions){
+//         if(j[0] == i[0] && j[2] == i[2] && j[1] == i[1] + 1){
+//             i[3] = 1;
+//             break;
+//         }
+//     }
+// })
+
+let positions = [];
+{
+    let scale = 5, offset = 1, yScale = 4;
+    for(let x = 0; x < Chunk.WIDTH; x++){
+        for(let z = 0; z < Chunk.WIDTH; z++){
+            let height = ~~(noise.simplex2(x / scale, z / scale) * yScale / 2 + yScale / 2 + offset);
+
+            for(let y = 0; y < height; y++){
+                positions.push([x,y,z,1]);
+            }
+            positions.push([x,height,z,2]);
         }
     }
-})
+}
 
 let c = new Chunk(positions);
 
