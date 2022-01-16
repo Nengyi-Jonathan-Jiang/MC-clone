@@ -34,7 +34,7 @@ const renderer = (function(){
     uniform sampler2D u_texture;
     
     void main(void) {
-        gl_FragColor = vec4((1.0 - v_dark) * vec3(texture2D(u_texture, v_tex)), 1.0);
+        gl_FragColor = vec4((1.0 - v_dark * 0.95) * vec3(texture2D(u_texture, v_tex)), 1.0);
     }
     `);
     

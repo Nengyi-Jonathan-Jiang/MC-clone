@@ -37,13 +37,14 @@ class Chunk{
 
         /** @type {PriorityQueue<[number,number,number,number]>*/
         let queue = new PriorityQueue((a,b) => a[3] > b[3]);
-        for(let x = 0, y = HEIGHT - 1; x < WIDTH; x++){
+        for(let x = 0; x < WIDTH; x++){
             for(let z = 0; z < DEPTH; z++){
-                if(this.getBlockIdAt(x,y,z) == 0){
-                    this.setBlockLightAt(x,y,z,255);
-                    this.setBlockLightFromAt(x,y,z,x,y,z);
+                for(let y = HEIGHT - 2; y >= 0 && this.getBlockIdAt(x,y,z) == 0; y--){
                     queue.push([x,y,z,255]);
+                    this.setBlockLightAt(x,y,z,255);
+                    this.setBlockLightFromAt(x,y,z,x,y + 1,z);
                 }
+                
             }
         }
         
@@ -51,9 +52,9 @@ class Chunk{
         while(++i < MAX_UPDATES && !queue.empty()){
             let [x,y,z,lvl] = queue.pop();
 
-            const C = 32;
+            const C = 16;
 
-            for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,0],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
+            for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,C],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
                 if(!this._inRange(xx,yy,zz)) continue;
                 if(this.getBlockIdAt(xx,yy,zz) != 0) continue;
@@ -174,4 +175,10 @@ class Chunk{
     setBlockLightFromAt(x,y,z,fx,fy,fz) {this.blockLightFrom.set([fx,fy,fz], this._mapPos(x,y,z) * 3)}
     getFaceLightAt(x,y,z,face){return this.blockLight[this._mapPos(x,y,z) * 6 + face]}
     setFaceLightAt(x,y,z,face, light){this.blockLight[this._mapPos(x,y,z) * 6 + face] = light}
+}
+
+class Chunks{
+    constructor(){
+
+    }
 }
