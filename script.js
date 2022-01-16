@@ -29,6 +29,7 @@ let c = new Chunk(positions);
 //     }
 // }
 // VBO.setData(dat);
+
 VBO.setData(c.getMesh());
 
 var control = new wgllib.gameUtil.FirstPersonController(renderer.camera);
