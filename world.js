@@ -27,7 +27,6 @@ class Chunk{
         this.blockIds =  new Uint16Array(Chunk.TOTAL_BLOCKS);
         this.blockLight = new Uint8Array(Chunk.TOTAL_BLOCKS);
         this.blockLightFrom = new Uint16Array(Chunk.TOTAL_BLOCKS * 3);
-        this.faceLight = new Uint8Array(Chunk.TOTAL_BLOCKS * 6);
         this.blockData = new Uint16Array(Chunk.TOTAL_BLOCKS);
 
         this.setFromPositions(positions||[]);
@@ -38,7 +37,6 @@ class Chunk{
         this.blockIds.fill(0);
         this.blockLight.fill(0);
         this.blockLightFrom.fill(65535);
-        this.faceLight.fill(0);
         this.blockData.fill(0);
 
         for(let [x,y,z,id] of positions) this.setBlockIdAt(x,y,z,id);
@@ -137,7 +135,7 @@ class Chunk{
         }
 
         const faceNormals = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]];
-        const vertsNormals = [0,1,2,3,4,5].map(i=>[0,1,2,3,4,5].map(j=>MESH_GEN.getPos(i,j,[0,0,0]).map(k=>k*2-1)));
+        const vertsDirections = [0,1,2,3,4,5].map(i=>[0,1,2,3,4,5].map(j=>MESH_GEN.getPos(i,j,[0,0,0]).map(k=>k*2-1)));
         // wgllib.core.math.m4.axisRotate()
 
         const vertCount = faceCount * 6;
@@ -156,6 +154,11 @@ class Chunk{
                             let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
 
                             for(let vertex = 0; vertex < 6; vertex++){
+
+                                // vertsDirections[face][vertex]
+
+                                let vertOffset = MESH_GEN.facev[face][vertex];
+
                                 [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x - tx,y - ty,z - tz]);
                                 [data[i++],data[i++]] = MESH_GEN.getTex(face, vertex, blockId);
                                 data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * faceLight / 255;
@@ -193,8 +196,6 @@ class Chunk{
     setBlockLightAt(x,y,z, light){this.blockLight[this._mapPos(x,y,z)] = light}
     getBlockLightFromAt(x,y,z){return [...this.blockLightFrom.slice(this._mapPos(x,y,z) * 3, this._mapPos(x,y,z) * 3 + 3)]}
     setBlockLightFromAt(x,y,z,fx,fy,fz) {this.blockLightFrom.set([fx,fy,fz], this._mapPos(x,y,z) * 3)}
-    getFaceLightAt(x,y,z,face){return this.blockLight[this._mapPos(x,y,z) * 6 + face]}
-    setFaceLightAt(x,y,z,face, light){this.blockLight[this._mapPos(x,y,z) * 6 + face] = light}
 
     // getBlockAt(x,y,z){return new Block(this.getBlockIdAt(x,y,z),this.getBlockLightAt(x,y,z),this.getBlockDataAt(x,y,z))}
     // setBlockAt(x,y,z,id,light,data){id!==undefined&&this.setBlockIdAt(x,y,z,id);light!==undefined&&this.setBlockLightAt(x,y,z,light);data!=undefined&&this.setBlockDataAt(x,y,z,data)}
