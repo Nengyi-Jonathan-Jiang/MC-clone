@@ -51,7 +51,7 @@ const renderer = (function(){
     var texture = new Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
     texture.bind();
     
-    const camera = new Camera(gl, [0,0,3],[0,0]);
+    const camera = new Camera(gl, [0,0,3],[0,0], .01, 1000);
     
     function preDraw(currTime,elapsedTime){
         camera.recompute_projection(toRad(70));

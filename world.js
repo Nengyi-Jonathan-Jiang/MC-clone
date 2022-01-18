@@ -137,12 +137,19 @@ class Chunk{
         }
 
         const faceNormals = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]];
-        const vertsDirections = [0,1,2,3,4,5].map(i=>[0,1,2,3,4,5].map(j=>MESH_GEN.getPos(i,j,[0,0,0]).map(k=>k*2-1)));
-        // wgllib.core.math.m4.axisRotate()
-
-        function addVecs(){
-
-        }
+        const vertsOffsets = MESH_GEN.facev.map((f,face)=>f.map((v,vert)=>v.map(i=>2*i-1)).map((v,vert)=>[
+            v,
+            m4.addVectors(m4.addVectors(
+                v.map(i=>i*Math.cos(toRad(45))),
+                m4.cross(faceNormals[face], v).map(i=>i*Math.sin(toRad(45)))
+                ),faceNormals[face].map(i=>i*m4.dot(faceNormals[face], v)*(1-Math.cos(toRad(45))))
+            ).map(Math.round),
+            m4.addVectors(m4.addVectors(
+                v.map(i=>i*Math.cos(toRad(45))),
+                m4.cross(faceNormals[face], v).map(i=>i*Math.sin(toRad(-45)))
+                ),faceNormals[face].map(i=>i*m4.dot(faceNormals[face], v)*(1-Math.cos(toRad(45))))
+            ).map(Math.round)
+        ]))
 
         const vertCount = faceCount * 6;
         let data = new Float32Array(vertCount * 6);
@@ -164,38 +171,31 @@ class Chunk{
 
                                 // vertsDirections[face][vertex]
 
-                                let vertOffset = MESH_GEN.facev[face][vertex].map(i=>2*i-1);
-                                let vertOffset2 = m4.addVectors(m4.addVectors(
-                                    vertOffset.map(i=>i*Math.cos(toRad(45))),
-                                    m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(45)))
-                                    ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
-                                ).map(Math.round);
-                                let vertOffset3 = m4.addVectors(m4.addVectors(
-                                    vertOffset.map(i=>i*Math.cos(toRad(45))),
-                                    m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(-45)))
-                                    ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
-                                ).map(Math.round);
+                                let [vertOffset,vertOffset2,vertOffset3] = vertsOffsets[face][vertex];
+
+                                // let vertOffset2 = m4.addVectors(m4.addVectors(
+                                //     vertOffset.map(i=>i*Math.cos(toRad(45))),
+                                //     m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(45)))
+                                //     ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
+                                // ).map(Math.round);
+                                // let vertOffset3 = m4.addVectors(m4.addVectors(
+                                //     vertOffset.map(i=>i*Math.cos(toRad(45))),
+                                //     m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(-45)))
+                                //     ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
+                                // ).map(Math.round);
                                 let [xxx,yyy,zzz] = [x + vertOffset[0], y + vertOffset[1], z + vertOffset[2]];
                                 let [xx2,yy2,zz2] = [x + vertOffset2[0], y + vertOffset2[1], z + vertOffset2[2]];
                                 let [xx3,yy3,zz3] = [x + vertOffset3[0], y + vertOffset3[1], z + vertOffset3[2]];
                                 
-                                // if(xx2 % 1 != 0 || yy2 % 1 != 0 || zz2 % 1 != 0
-                                // || xx3 % 1 != 0 || yy3 % 1 != 0 || zz3 % 1 != 0)
-                                //     console.log(xx2,yy2,zz2,xx3,yy3,zz3);
-
-                                // let vertexLight = (faceLight +
-                                //     (
-                                //         this._inRange(xxx,yyy,zzz) ? this.getBlockLightAt(xxx,yyy,zzz): 255
-                                //     )
-                                // ) / 2;
+                                let lf = faceLight / 255;
                                 let lc = this.getBlockLightAt(xxx,yyy,zzz) / 255;
                                 let l1 = this.getBlockLightAt(xx2,yy2,zz2) / 255;
                                 let l2 = this.getBlockLightAt(xx3,yy3,zz3) / 255;
                                 let vertexLight = (
                                     this._inRange(xxx,yyy,zzz) ?
                                     l1 + l2 == 0 ? 0 : 
-                                    (l1 + l2 + lc) / 3
-                                    : 1
+                                    (l1 + l2 + lc + lf) / 4
+                                    : lf
                                 ) * 255;
                                 
 
@@ -266,7 +266,7 @@ class Chunks{
     generateChunk(X,Z){
         let res = new Chunk();
 
-        const scale = 16, offset = 10, yScale = 4, perturb = 8, perturbScale = 10;
+        const scale = 16, offset = 20, yScale = 4, perturb = 80, perturbScale = 40;
 
         for(let x = 0; x < Chunk.WIDTH; x++){
             for(let z = 0; z < Chunk.WIDTH; z++){
@@ -282,7 +282,8 @@ class Chunks{
                     trueZ += perturbZ;
 
                     let height = ~~((this._noise2(trueX / scale, trueZ / scale) + 1) * yScale + offset);
-                    if(trueY < height)
+
+                    if(~~trueY < height)
                         res.setBlockIdAt(x,y,z,27);
                 }
             }
@@ -301,7 +302,7 @@ class Chunks{
         this.chunks.get([x>>4,z>>4]).setBlockAt(x&15,y,z&15,id,light,data);
     }
     getMeshes(x,y,z){
-        const RENDER_DISTANCE = 3;
+        const RENDER_DISTANCE = 5;
         let data = new Array((RENDER_DISTANCE * 2 + 1) * (RENDER_DISTANCE * 2 + 1));
         let i = 0;
         const X = x >> 4, Z = z >> 4;
