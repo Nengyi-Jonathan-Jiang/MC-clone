@@ -117,6 +117,8 @@ class Chunk{
     }
 
     getMesh(tx,ty,tz){
+        const {m4,toRad} = wgllib.core.math;
+
         let {WIDTH,HEIGHT,DEPTH,TOTAL_BLOCKS,MESH_GEN} = Chunk;
 
         let faceCount = 0;
@@ -138,6 +140,10 @@ class Chunk{
         const vertsDirections = [0,1,2,3,4,5].map(i=>[0,1,2,3,4,5].map(j=>MESH_GEN.getPos(i,j,[0,0,0]).map(k=>k*2-1)));
         // wgllib.core.math.m4.axisRotate()
 
+        function addVecs(){
+
+        }
+
         const vertCount = faceCount * 6;
         let data = new Float32Array(vertCount * 6);
         let i = 0;
@@ -148,7 +154,8 @@ class Chunk{
                     if(blockId == 0) continue;
 
                     for(let face = 0; face < 6; face++){
-                        let [dx,dy,dz] = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]][face];
+                        let faceNormal = faceNormals[face];
+                        let [dx,dy,dz] = faceNormal;
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
                         if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
                             let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
@@ -157,11 +164,44 @@ class Chunk{
 
                                 // vertsDirections[face][vertex]
 
-                                let vertOffset = MESH_GEN.facev[face][vertex];
+                                let vertOffset = MESH_GEN.facev[face][vertex].map(i=>2*i-1);
+                                let vertOffset2 = m4.addVectors(m4.addVectors(
+                                    vertOffset.map(i=>i*Math.cos(toRad(45))),
+                                    m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(45)))
+                                    ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
+                                ).map(Math.round);
+                                let vertOffset3 = m4.addVectors(m4.addVectors(
+                                    vertOffset.map(i=>i*Math.cos(toRad(45))),
+                                    m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(-45)))
+                                    ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
+                                ).map(Math.round);
+                                let [xxx,yyy,zzz] = [x + vertOffset[0], y + vertOffset[1], z + vertOffset[2]];
+                                let [xx2,yy2,zz2] = [x + vertOffset2[0], y + vertOffset2[1], z + vertOffset2[2]];
+                                let [xx3,yy3,zz3] = [x + vertOffset3[0], y + vertOffset3[1], z + vertOffset3[2]];
+                                
+                                // if(xx2 % 1 != 0 || yy2 % 1 != 0 || zz2 % 1 != 0
+                                // || xx3 % 1 != 0 || yy3 % 1 != 0 || zz3 % 1 != 0)
+                                //     console.log(xx2,yy2,zz2,xx3,yy3,zz3);
+
+                                // let vertexLight = (faceLight +
+                                //     (
+                                //         this._inRange(xxx,yyy,zzz) ? this.getBlockLightAt(xxx,yyy,zzz): 255
+                                //     )
+                                // ) / 2;
+                                let lc = this.getBlockLightAt(xxx,yyy,zzz) / 255;
+                                let l1 = this.getBlockLightAt(xx2,yy2,zz2) / 255;
+                                let l2 = this.getBlockLightAt(xx3,yy3,zz3) / 255;
+                                let vertexLight = (
+                                    this._inRange(xxx,yyy,zzz) ?
+                                    l1 + l2 == 0 ? 0 : 
+                                    (l1 + l2 + lc) / 3
+                                    : 1
+                                ) * 255;
+                                
 
                                 [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x - tx,y - ty,z - tz]);
                                 [data[i++],data[i++]] = MESH_GEN.getTex(face, vertex, blockId);
-                                data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * faceLight / 255;
+                                data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * vertexLight / 255;
                             }
                         }
                     }
@@ -243,7 +283,7 @@ class Chunks{
 
                     let height = ~~((this._noise2(trueX / scale, trueZ / scale) + 1) * yScale + offset);
                     if(trueY < height)
-                        res.setBlockIdAt(x,y,z,3);
+                        res.setBlockIdAt(x,y,z,27);
                 }
             }
         }
