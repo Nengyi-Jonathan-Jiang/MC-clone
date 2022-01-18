@@ -1,3 +1,19 @@
+class Block{
+    /** @param {number} id @param {number} light @param {number} data */
+    constructor(id,light,data=0){
+        this.id = id;
+        this.data = data;
+        this.light = light;
+    }
+
+    static DEBUG = 0;
+    static GRASS = 1;
+    static DIRT = 2;
+    static STONE = 3;
+
+    static transparent = new Set([0,28]);
+}
+
 class Chunk{
     static WIDTH = 16; 
     static HEIGHT = 256;
@@ -39,7 +55,7 @@ class Chunk{
         let queue = new PriorityQueue((a,b) => a[3] > b[3]);
         for(let x = 0; x < WIDTH; x++){
             for(let z = 0; z < DEPTH; z++){
-                for(let y = HEIGHT - 2; y >= 0 && this.getBlockIdAt(x,y,z) == 0; y--){
+                for(let y = HEIGHT - 2; y >= 0 && Block.transparent.has(this.getBlockIdAt(x,y,z)); y--){
                     queue.push([x,y,z,255]);
                     this.setBlockLightAt(x,y,z,255);
                     this.setBlockLightFromAt(x,y,z,x,y + 1,z);
@@ -57,7 +73,7 @@ class Chunk{
             for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,C],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
                 if(!this._inRange(xx,yy,zz)) continue;
-                if(this.getBlockIdAt(xx,yy,zz) != 0) continue;
+                if(!Block.transparent.has(this.getBlockIdAt(xx,yy,zz))) continue;
                 if(ll > this.getBlockLightAt(xx,yy,zz))
                     this.setBlockLightAt(xx,yy,zz,ll),
                     this.setBlockLightFromAt(xx,yy,zz,x,y,z),
@@ -67,7 +83,7 @@ class Chunk{
         
         if(log)
             if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
-            else console.log("Updated lighting in " + i + "steps");
+            else console.log("Updated lighting in " + i + " steps (" + Math.round(i * 10000 / 65536) / 100 + "% of total chunk size)");
     }
 
     
@@ -91,7 +107,7 @@ class Chunk{
 
             for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
-                if(this._inRange(xx,yy,zz) && this.getBlockIdAt(xx,yy,zz) == 0 && ll > this.getBlockLightAt(xx,yy,zz))
+                if(this._inRange(xx,yy,zz) && Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && ll > this.getBlockLightAt(xx,yy,zz))
                     this.setBlockLightAt(xx,yy,zz,ll),
                     queue.push([xx,yy,zz,ll]);
             }
@@ -102,7 +118,7 @@ class Chunk{
             else console.log("Updated lighting in " + i + steps);
     }
 
-    getMesh(){
+    getMesh(tx,ty,tz){
         let {WIDTH,HEIGHT,DEPTH,TOTAL_BLOCKS,MESH_GEN} = Chunk;
 
         let faceCount = 0;
@@ -112,13 +128,17 @@ class Chunk{
                     if(this.getBlockIdAt(x,y,z) == 0) continue;
                     for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]]){
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || this.getBlockIdAt(xx,yy,zz) == 0){
+                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz))){
                             faceCount++;
                         }
                     }
                 }
             }
         }
+
+        const faceNormals = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]];
+        const vertsNormals = [0,1,2,3,4,5].map(i=>[0,1,2,3,4,5].map(j=>MESH_GEN.getPos(i,j,[0,0,0]).map(k=>k*2-1)));
+        // wgllib.core.math.m4.axisRotate()
 
         const vertCount = faceCount * 6;
         let data = new Float32Array(vertCount * 6);
@@ -132,11 +152,11 @@ class Chunk{
                     for(let face = 0; face < 6; face++){
                         let [dx,dy,dz] = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]][face];
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || this.getBlockIdAt(xx,yy,zz) == 0){
+                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz))){
                             let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
 
                             for(let vertex = 0; vertex < 6; vertex++){
-                                [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x,y,z]);
+                                [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x - tx,y - ty,z - tz]);
                                 [data[i++],data[i++]] = MESH_GEN.getTex(face, vertex, blockId);
                                 data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * faceLight / 255;
                             }
@@ -175,10 +195,60 @@ class Chunk{
     setBlockLightFromAt(x,y,z,fx,fy,fz) {this.blockLightFrom.set([fx,fy,fz], this._mapPos(x,y,z) * 3)}
     getFaceLightAt(x,y,z,face){return this.blockLight[this._mapPos(x,y,z) * 6 + face]}
     setFaceLightAt(x,y,z,face, light){this.blockLight[this._mapPos(x,y,z) * 6 + face] = light}
+
+    // getBlockAt(x,y,z){return new Block(this.getBlockIdAt(x,y,z),this.getBlockLightAt(x,y,z),this.getBlockDataAt(x,y,z))}
+    // setBlockAt(x,y,z,id,light,data){id!==undefined&&this.setBlockIdAt(x,y,z,id);light!==undefined&&this.setBlockLightAt(x,y,z,light);data!=undefined&&this.setBlockDataAt(x,y,z,data)}
 }
 
 class Chunks{
     constructor(){
+        /** @type {Map<string, Chunk} */
+        this.chunks = new Map();
 
+        // this.dirty = new Map
+    }
+    chunkAt(X,Z){
+        if(this.chunks.has(X+","+Z)) return this.chunks.get([X,Z]);
+        return this.generateChunk(X,Z);
+    }
+    _placeChunkAt(X,Z,chunk){
+        this.chunks.set(X+","+Z,chunk);
+    }
+    generateChunk(X,Z){
+        let res = new Chunk();
+
+        const scale = 12, offset = 4, yScale = 2;
+
+        for(let x = 0; x < Chunk.WIDTH; x++){
+            for(let z = 0; z < Chunk.WIDTH; z++){
+                let trueX = x + X * 16, trueZ = z + Z * 16;
+                let height = ~~((noise.simplex2(trueX / scale, trueZ / scale) + 1) * yScale + offset);
+                for(let y = 0; y < height; y++)
+                    res.setBlockIdAt(x,y,z,3);
+                res.setBlockIdAt(x,height,z,28);
+            }
+        }
+
+        res.updateAllLighting();
+        this._placeChunkAt(X,Z,res);
+        return res;
+    }
+
+    blockAt(x,y,z){
+        if(y < 0 || y > 255) throw new Error(`Block out of bounds : (${x}, ${y}, ${z})`);
+        return this.chunks.get([x>>4,z>>4]).getBlockAt(x&15,y,z&15);
+    }
+    setBlockAt(x,y,z,id,light,data){
+        this.chunks.get([x>>4,z>>4]).setBlockAt(x&15,y,z&15,id,light,data);
+    }
+    getMeshes(x,y,z){
+        const RENDER_DISTANCE = 3;
+        let data = new Array((RENDER_DISTANCE * 2 + 1) * (RENDER_DISTANCE * 2 + 1));
+        let i = 0;
+        const X = x >> 4, Z = z >> 4;
+        for(let chunkOffsetX = -RENDER_DISTANCE; chunkOffsetX <= RENDER_DISTANCE; chunkOffsetX++)
+            for(let chunkOffsetZ = -RENDER_DISTANCE; chunkOffsetZ <= RENDER_DISTANCE; chunkOffsetZ++)
+                data[i++] = this.chunkAt(X + chunkOffsetX,Z + chunkOffsetZ).getMesh(x + 16 * chunkOffsetX,y,z + 16 * chunkOffsetZ);
+        return data;
     }
 }

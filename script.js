@@ -27,22 +27,24 @@ var VBO = renderer.VBO;
 //     }
 // })
 
+noise.seed(Math.random());
 let positions = [];
 {
-    let scale = 5, offset = 1, yScale = 4;
+    let scale = 12, offset = 4, yScale = 4;
     for(let x = 0; x < Chunk.WIDTH; x++){
         for(let z = 0; z < Chunk.WIDTH; z++){
             let height = ~~(noise.simplex2(x / scale, z / scale) * yScale / 2 + yScale / 2 + offset);
-
-            for(let y = 0; y < height; y++){
-                positions.push([x,y,z,1]);
-            }
+            for(let y = 0; y < height; y++) positions.push([x,y,z,1]);
             positions.push([x,height,z,2]);
         }
     }
 }
 
 let c = new Chunk(positions);
+
+let chunks = new Chunks();
+let meshes = chunks.getMeshes(0,0,0);
+console.log(meshes);
 
 // let dat = new Float32Array(positions.length * 216);
 // let i = 0;
@@ -57,11 +59,15 @@ let c = new Chunk(positions);
 // }
 // VBO.setData(dat);
 
-VBO.setData(c.getMesh());
+VBO.setData(c.getMesh(0,0,0));
 
 var control = new wgllib.gameUtil.FirstPersonController(renderer.camera);
 
 wgllib.createAnimation(function(currTime,elapsedTime){
     control.update(elapsedTime);
-    renderer.draw(currTime,elapsedTime);
+    renderer.preDraw();
+    for(let mesh of meshes){
+        VBO.setData(mesh);
+        renderer.draw(currTime,elapsedTime);
+    }
 });

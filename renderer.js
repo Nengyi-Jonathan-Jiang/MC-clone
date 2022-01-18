@@ -5,8 +5,7 @@ const renderer = (function(){
     events.init();
     // events.init();
     
-    // const CLEAR_COLOR = [212, 248, 255];
-    const CLEAR_COLOR = [21, 24, 25];
+    const CLEAR_COLOR = [212, 248, 255];
     gl.clearColor(...CLEAR_COLOR.map(i=>i/255),1.0);
     
     const shaderProgram = new Program(gl,`
@@ -34,7 +33,9 @@ const renderer = (function(){
     uniform sampler2D u_texture;
     
     void main(void) {
-        gl_FragColor = vec4((1.0 - v_dark * 0.95) * vec3(texture2D(u_texture, v_tex)), 1.0);
+        vec4 color = texture2D(u_texture, v_tex);
+        if(color.a <= 0.0001) discard;
+        gl_FragColor = vec4((1.0 - v_dark * 0.95) * vec3(color), 1.0);
     }
     `);
     
@@ -52,13 +53,16 @@ const renderer = (function(){
     
     const camera = new Camera(gl, [0,0,3],[0,0]);
     
-    function draw(currTime,elapsedTime){
+    function preDraw(currTime,elapsedTime){
         camera.recompute_projection(toRad(70));
         shaderProgram.uniformMat("u_mat", camera.get_matrix());
     
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    }
+    function draw(currTime,elapsedTime){
         camera.draw(shaderProgram, VAO, gl.TRIANGLES, 0, VBO.bytes / 24);
     };
 
-    return {VBO:VBO,draw:draw,camera:camera};
+    return {VBO:VBO,preDraw:preDraw,draw:draw,camera:camera};
 })();
