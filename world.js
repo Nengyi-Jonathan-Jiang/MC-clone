@@ -68,7 +68,7 @@ class Chunk{
         while(++i < MAX_UPDATES && !queue.empty()){
             let [x,y,z,lvl] = queue.pop();
 
-            const C = 16;
+            const C = 32;
 
             for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,C],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
                 let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
@@ -128,7 +128,7 @@ class Chunk{
                     if(this.getBlockIdAt(x,y,z) == 0) continue;
                     for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]]){
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz))){
+                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
                             faceCount++;
                         }
                     }
@@ -152,7 +152,7 @@ class Chunk{
                     for(let face = 0; face < 6; face++){
                         let [dx,dy,dz] = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]][face];
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz))){
+                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
                             let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
 
                             for(let vertex = 0; vertex < 6; vertex++){
@@ -214,18 +214,36 @@ class Chunks{
     _placeChunkAt(X,Z,chunk){
         this.chunks.set(X+","+Z,chunk);
     }
+
+    _noise2(x,y){
+        return (noise.simplex2(x,y) + noise.simplex2(x / 2, y / 2) / 2 + noise.simplex2(x / 4, y / 4) / 4) / 2;
+    }
+    _noise3(x,y,z){
+        return (noise.simplex3(x,y,z) + noise.simplex3(x / 2, y / 2, z / 2) / 2 + noise.simplex3(x / 4, y / 4, z / 4) / 4) / 2;
+    }
+
     generateChunk(X,Z){
         let res = new Chunk();
 
-        const scale = 12, offset = 4, yScale = 2;
+        const scale = 16, offset = 10, yScale = 4, perturb = 8, perturbScale = 10;
 
         for(let x = 0; x < Chunk.WIDTH; x++){
             for(let z = 0; z < Chunk.WIDTH; z++){
-                let trueX = x + X * 16, trueZ = z + Z * 16;
-                let height = ~~((noise.simplex2(trueX / scale, trueZ / scale) + 1) * yScale + offset);
-                for(let y = 0; y < height; y++)
-                    res.setBlockIdAt(x,y,z,3);
-                res.setBlockIdAt(x,height,z,28);
+                for(let y = 0; y < Chunk.HEIGHT; y++){
+                    let trueX = x + X * 16, trueZ = z + Z * 16;
+                    let trueY = y;
+                    let perturbX = this._noise3((trueX + 3404) / perturbScale, (y + 7219) / perturbScale, (trueZ + 7827) / perturbScale) * perturb;
+                    let perturbY = this._noise3((trueX +10360) / perturbScale, (y + 8904) / perturbScale, (trueZ + 2085) / perturbScale) * perturb;
+                    let perturbZ = this._noise3((trueX +10095) / perturbScale, (y + 5274) / perturbScale, (trueZ + 2683) / perturbScale) * perturb;
+
+                    trueX += perturbX;
+                    trueY += perturbY;
+                    trueZ += perturbZ;
+
+                    let height = ~~((this._noise2(trueX / scale, trueZ / scale) + 1) * yScale + offset);
+                    if(trueY < height)
+                        res.setBlockIdAt(x,y,z,3);
+                }
             }
         }
 
@@ -248,7 +266,7 @@ class Chunks{
         const X = x >> 4, Z = z >> 4;
         for(let chunkOffsetX = -RENDER_DISTANCE; chunkOffsetX <= RENDER_DISTANCE; chunkOffsetX++)
             for(let chunkOffsetZ = -RENDER_DISTANCE; chunkOffsetZ <= RENDER_DISTANCE; chunkOffsetZ++)
-                data[i++] = this.chunkAt(X + chunkOffsetX,Z + chunkOffsetZ).getMesh(x + 16 * chunkOffsetX,y,z + 16 * chunkOffsetZ);
+                data[i++] = this.chunkAt(X + chunkOffsetX,Z + chunkOffsetZ).getMesh(x - 16 * chunkOffsetX,y,z - 16 * chunkOffsetZ);
         return data;
     }
 }

@@ -288,11 +288,13 @@ var noise = (function(){
             lerp(n011, n111, u), w),
          v);
     };
+    
+
     return {
         simplex2:simplex2,
         simplex3:simplex3,
         perlin2:perlin2,
         perlin3:perlin3,
-        seed:seed
+        seed:seed,
     };
 })();
