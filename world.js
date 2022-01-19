@@ -12,11 +12,13 @@ class Block{
     static STONE = 3;
 
     static getTransparency(blockId){
-        return 1 - ({    //This object stores how much light passes through the block
+        return ({    //This object stores how much light passes through the block
             0: 1,
             28: 1,
         }[blockId] || 0);
     }
+
+    static DIFFUSION = 32;
 }
 
 class Chunk{
@@ -63,7 +65,7 @@ class Chunk{
         for(let x = 0; x < WIDTH; x++){
             for(let z = 0; z < DEPTH; z++){
                 //Set the light level of all blocks exposed to skylight to max
-                for(let y = HEIGHT - 2; y >= 0 && Block.transparent.has(this.getBlockIdAt(x,y,z)); y--){
+                for(let y = HEIGHT - 2; y >= 0 && Block.getTransparency(this.getBlockIdAt(x,y,z)) == 1; y--){
                     //Set the light level of the block
                     this.setBlockLightAt(x,y,z,255);
                     //The light comes from the block above
@@ -75,16 +77,24 @@ class Chunk{
             }
         }
         
+        //Counter to make sure we don't do way too many lighting updates (that would be bad)
         let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 64;
+        //While update queue is not empty
         while(++i < MAX_UPDATES && !queue.empty()){
+            //extract the position and new light level
             const [x,y,z,lvl] = queue.pop();
 
+            //If this lighting update is outdated, skip it
+            if(lvl != this.getBlockLightAt(x,y,z)) continue;
+
+            //For each adjacent block
             for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]]){
+                //Get the position
                 const [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                //Don't do lighting updates out of chunk (yet - will implement later)
+                //Don't propogate lighting across chunk borders (yet - will implement later)
                 if(!this._inRange(xx,yy,zz)) continue;
                 //This is the light value that will be propogated to the block
-                const ll = lvl - Block.getTransparency(this.getBlockIdAt(xx,yy,zz));
+                const ll = lvl - 255 * (1 - Block.getTransparency(this.getBlockIdAt(xx,yy,zz))) - Block.DIFFUSION;
                 //Don't update the light level if it is lower than the current level
                 if(ll > this.getBlockLightAt(xx,yy,zz))
                     //Set light level of the block
@@ -96,102 +106,118 @@ class Chunk{
             }
         }
         
-        if(log)
-            if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
-            else console.log("Updated lighting in " + i + " steps (" + Math.round(i * 10000 / 65536) / 100 + "% of total chunk size)");
+        //Warning if too many lighting updates
+        if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
+        //Log the amount of updates taken
+        else if(log) console.log("Updated lighting in " + i + " steps (" + Math.round(i * 10000 / 65536) / 100 + "% of total chunk size)");
     }
 
     
+    //Not implemented yet - will merge with above method later
     /** @param {[number,number,number][]} positions */
     updateLighting(positions, log=true){
         console.warn("This method is not implemented yet!");
     }
 
     getMesh(tx,ty,tz){
-        const {m4,toRad} = wgllib.core.math;
+        const {m4,m4:{dot,add,cross},toRad} = wgllib.core.math;
+        const {sin,cos,round} = Math;
 
-        let {WIDTH,HEIGHT,DEPTH,TOTAL_BLOCKS,MESH_GEN} = Chunk;
+        let {WIDTH,HEIGHT,DEPTH,MESH_GEN} = Chunk;
 
+        //Count faces to be rendered (so as not to allocate extra memory)
         let faceCount = 0;
+        //For each block
         for(let x = 0; x < WIDTH; x++){
             for(let y = 0; y < HEIGHT; y++){
                 for(let z = 0; z < DEPTH; z++){
+                    //If it's air (nothing is drawn), don't do anything
                     if(this.getBlockIdAt(x,y,z) == 0) continue;
+                    //for each face
                     for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]]){
+                        //get position of adjacent block
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
-                            faceCount++;
+                        if(
+                            //If the block out of range of the chunk
+                            !this._inRange(xx,yy,zz) ||
+                            //Or if the neighboring block is not totally opaque and they are different types of blocks
+                            Block.getTransparency(this.getBlockIdAt(xx,yy,zz)) != 0 &&
+                            this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
+                                //Increase faceCount
+                                faceCount++;
                         }
                     }
                 }
             }
         }
 
-        const faceNormals = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]];
-        const vertsOffsets = MESH_GEN.facev.map((f,face)=>f.map((v,vert)=>v.map(i=>2*i-1)).map((v,vert)=>[
+        //Normals to faces
+        const fNormals = [[0,1,0],[0,-1,0],[0,0,-1],[0,0,1],[1,0,0],[-1,0,0]];
+        //Vertex offsets (calculated using rotation around axis formula)
+        const vertsOffsets = MESH_GEN.facev.map((s,f)=>s.map(v=>v.map(i=>2*i-1)).map(v=>[
             v,
-            m4.addVectors(m4.addVectors(
-                v.map(i=>i*Math.cos(toRad(45))),
-                m4.cross(faceNormals[face], v).map(i=>i*Math.sin(toRad(45)))
-                ),faceNormals[face].map(i=>i*m4.dot(faceNormals[face], v)*(1-Math.cos(toRad(45))))
-            ).map(Math.round),
-            m4.addVectors(m4.addVectors(
-                v.map(i=>i*Math.cos(toRad(45))),
-                m4.cross(faceNormals[face], v).map(i=>i*Math.sin(toRad(-45)))
-                ),faceNormals[face].map(i=>i*m4.dot(faceNormals[face], v)*(1-Math.cos(toRad(45))))
-            ).map(Math.round)
+            add(add(v.map(i=>i*cos(toRad(45))),cross(fNormals[f], v).map(i=>i*sin(toRad( 45)))),fNormals[f].map(i=>i*dot(fNormals[f],v)*(1-cos(toRad(45))))).map(round),
+            add(add(v.map(i=>i*cos(toRad(45))),cross(fNormals[f], v).map(i=>i*sin(toRad(-45)))),fNormals[f].map(i=>i*dot(fNormals[f],v)*(1-cos(toRad(45))))).map(round)
         ]))
 
-        const vertCount = faceCount * 6;
-        let data = new Float32Array(vertCount * 6);
+        //Initialize array
+        let data = new Float32Array(faceCount * 36);
+        //Index at which to insert data
         let i = 0;
+        //For each block
         for(let x = 0; x < WIDTH; x++){
             for(let y = 0; y < HEIGHT; y++){
                 for(let z = 0; z < DEPTH; z++){
+                    //Block ID
                     const blockId = this.getBlockIdAt(x,y,z);
+                    //If the block is air, do nothing
                     if(blockId == 0) continue;
-
+                    
+                    //For each face
                     for(let face = 0; face < 6; face++){
-                        let faceNormal = faceNormals[face];
+                        //Normal vector of that face
+                        let faceNormal = fNormals[face];
                         let [dx,dy,dz] = faceNormal;
+                        //Block adjacent to that face
                         let [xx,yy,zz] = [x + dx, y + dy, z + dz];
-                        if(!this._inRange(xx,yy,zz) || Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)){
+                        if(
+                            //If the block out of range of the chunk
+                            !this._inRange(xx,yy,zz) ||
+                            //Or if the neighboring block is not totally opaque and they are different types of blocks
+                            Block.getTransparency(this.getBlockIdAt(xx,yy,zz)) != 0 &&
+                            this.getBlockIdAt(x,y,z) != this.getBlockIdAt(xx,yy,zz)
+                        ){
+                            //Get the light level at this block (the adjacent block) if it exists otherwise assume it is max light
                             let faceLight = this._inRange(xx,yy,zz) ? this.getBlockLightAt(xx,yy,zz) : 255;
 
+                            //For each vertex of the face
                             for(let vertex = 0; vertex < 6; vertex++){
-
-                                // vertsDirections[face][vertex]
-
+                                //Offsets for corner and 2 edge blocks for this vertex
                                 let [vertOffset,vertOffset2,vertOffset3] = vertsOffsets[face][vertex];
 
-                                // let vertOffset2 = m4.addVectors(m4.addVectors(
-                                //     vertOffset.map(i=>i*Math.cos(toRad(45))),
-                                //     m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(45)))
-                                //     ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
-                                // ).map(Math.round);
-                                // let vertOffset3 = m4.addVectors(m4.addVectors(
-                                //     vertOffset.map(i=>i*Math.cos(toRad(45))),
-                                //     m4.cross(faceNormal, vertOffset).map(i=>i*Math.sin(toRad(-45)))
-                                //     ),faceNormal.map(i=>i*m4.dot(faceNormal, vertOffset)*(1-Math.cos(toRad(45))))
-                                // ).map(Math.round);
-                                let [xxx,yyy,zzz] = [x + vertOffset[0], y + vertOffset[1], z + vertOffset[2]];
-                                let [xx2,yy2,zz2] = [x + vertOffset2[0], y + vertOffset2[1], z + vertOffset2[2]];
-                                let [xx3,yy3,zz3] = [x + vertOffset3[0], y + vertOffset3[1], z + vertOffset3[2]];
+                                //Positions for corner and 2 edge blocks for this vertex
+                                let [xxx,yyy,zzz] = add([x,y,z],vertOffset);
+                                let [xx2,yy2,zz2] = add([x,y,z],vertOffset2);
+                                let [xx3,yy3,zz3] = add([x,y,z],vertOffset3);
                                 
+                                //Light levels of the 4 blocks
                                 let lf = faceLight / 255;
                                 let lc = this.getBlockLightAt(xxx,yyy,zzz) / 255;
                                 let l1 = this.getBlockLightAt(xx2,yy2,zz2) / 255;
                                 let l2 = this.getBlockLightAt(xx3,yy3,zz3) / 255;
+                                //Light level of the vertex
                                 let vertexLight = (
                                     this._inRange(xxx,yyy,zzz) ?
                                     (lc + lf + l1 + l2) / 4
                                     : 1
-                                ) * 255;
+                                );
                                 
-
+                                //Set the data (position)
                                 [data[i++],data[i++],data[i++]] = MESH_GEN.getPos(face,vertex,[x - tx,y - ty,z - tz]);
+                                //Set the data (texture coordinates)
                                 [data[i++],data[i++]] = MESH_GEN.getTex(face, vertex, blockId);
-                                data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * vertexLight / 255;
+                                //Set the data (light level)
+                                data[i++] = 1 - [1,.64,.8,.8,.8,.8][face] * vertexLight;
                             }
                         }
                     }
@@ -257,7 +283,7 @@ class Chunks{
     generateChunk(X,Z){
         let res = new Chunk();
 
-        const scale = 16, offset = 10, yScale = 4, perturb = 20, perturbScale = 40;
+        const scale = 16, offset = 10, yScale = 4, perturb = 40, perturbScale = 40;
 
         for(let x = 0; x < Chunk.WIDTH; x++){
             for(let z = 0; z < Chunk.WIDTH; z++){

@@ -121,7 +121,7 @@ var wgllib = (_=>
          * @param {Matrix4} m The matrix. @param {vec3} v The normal. @param {vec3} [dst] The direction. @return {vec3} The transformed direction. */
         function transformNormal(m,v,dst){dst||=new Float32Array(3);var mi=inverse(m);var v0=v[0];var v1=v[1];var v2=v[2];dst[0]=v0*mi[0*4+0]+v1*mi[0*4+1]+v2*mi[0*4+2];dst[1]=v0*mi[1*4+0]+v1*mi[1*4+1]+v2*mi[1*4+2];dst[2]=v0*mi[2*4+0]+v1*mi[2*4+1]+v2*mi[2*4+2];return dst}
         function copy(src,dst){dst||=new Float32Array(16);dst[0]=src[0];dst[1]=src[1];dst[2]=src[2];dst[3]=src[3];dst[4]=src[4];dst[5]=src[5];dst[6]=src[6];dst[7]=src[7];dst[8]=src[8];dst[9]=src[9];dst[10]=src[10];dst[11]=src[11];dst[12]=src[12];dst[13]=src[13];dst[14]=src[14];dst[15]=src[15];return dst}
-		return {copy: copy,lookAt: lookAt,addVectors: addVectors,subtractVectors: subtractVectors,scaleVector: scaleVector,distance: distance,distanceSq: distanceSq,normalize: normalize,compose: compose,cross: cross,decompose: decompose,dot: dot,identity: identity,transpose: transpose,length: length,lengthSq: lengthSq,orthographic: orthographic,frustum: frustum,perspective: perspective,translation: translation,translate: translate,xRotation: xRotation,yRotation: yRotation,zRotation: zRotation,xRotate: xRotate,yRotate: yRotate,zRotate: zRotate,axisRotation: axisRotation,axisRotate: axisRotate,scaling: scaling,scale: scale,multiply: multiply,inverse: inverse,transformVector: transformVector,transformPoint: transformPoint,transformDirection: transformDirection,transformNormal: transformNormal}
+		return {copy: copy,lookAt: lookAt,addVectors: addVectors,add:addVectors,subtractVectors: subtractVectors,scaleVector: scaleVector,distance: distance,distanceSq: distanceSq,normalize: normalize,compose: compose,cross: cross,decompose: decompose,dot: dot,identity: identity,transpose: transpose,length: length,lengthSq: lengthSq,orthographic: orthographic,frustum: frustum,perspective: perspective,translation: translation,translate: translate,xRotation: xRotation,yRotation: yRotation,zRotation: zRotation,xRotate: xRotate,yRotate: yRotate,zRotate: zRotate,axisRotation: axisRotation,axisRotate: axisRotate,scaling: scaling,scale: scale,multiply: multiply,inverse: inverse,transformVector: transformVector,transformPoint: transformPoint,transformDirection: transformDirection,transformNormal: transformNormal}
 	})();
   
     //Core
@@ -479,7 +479,163 @@ var wgllib = (_=>
         constructor(atlasWidth = 16,atlasHeight = 16){
             this.atlasWidth = atlasWidth;
             this.atlasHeight = atlasHeight;
-            this.facev = "276723|450105|426240|735153|674547|032301".split("|").map(i=>i.split("").map(j=>Number.parseInt(j,10)).map(j=>[(j>>2)&1,(j>>1)&1,j&1]));
+            this.facev = [
+                [
+                    [0, 1, 0],
+                    [1, 1, 1],
+                    [1, 1, 0],
+                    [1, 1, 1],
+                    [0, 1, 0],
+                    [0, 1, 1],
+                ],[
+                    [1, 0, 0],
+                    [1, 0, 1],
+                    [0, 0, 0],
+                    [
+                        0,
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ],
+                    [
+                        1,
+                        0,
+                        1
+                    ]
+                ],
+                [
+                    [
+                        1,
+                        0,
+                        0
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        1,
+                        1,
+                        0
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        1,
+                        0,
+                        0
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                [
+                    [
+                        1,
+                        1,
+                        1
+                    ],
+                    [
+                        0,
+                        1,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        1
+                    ],
+                    [
+                        0,
+                        1,
+                        1
+                    ]
+                ],
+                [
+                    [
+                        1,
+                        1,
+                        0
+                    ],
+                    [
+                        1,
+                        1,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        0
+                    ],
+                    [
+                        1,
+                        0,
+                        1
+                    ],
+                    [
+                        1,
+                        0,
+                        0
+                    ],
+                    [
+                        1,
+                        1,
+                        1
+                    ]
+                ],
+                [
+                    [
+                        0,
+                        0,
+                        0
+                    ],
+                    [
+                        0,
+                        1,
+                        1
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        0,
+                        1,
+                        1
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ],
+                    [
+                        0,
+                        0,
+                        1
+                    ]
+                ]
+            ];
             this.facet = "501054|125652|69596A|849594|D9EAE9|9C8C9D".split("|").map(i=>i.split("").map(j=>Number.parseInt(j,16)).map(j=>[((j>>2)&3)/atlasWidth,(j&3)/atlasHeight]));
         }
         getPos(face,vertex,position){return this.facev[face][vertex].map((s,i)=>s + position[i])}

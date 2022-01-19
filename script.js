@@ -1,7 +1,7 @@
 const {core:{math:{toDeg,toRad}}} = wgllib;
 
 var camera = renderer.camera;
-[camera.position,camera.rotation] = [[1.45, 2, 0.5], [1, 2]];
+[camera.position,camera.rotation] = [[1.45, 20, 0.5], [1, 1]];
 
 var VBO = renderer.makeMesh();
 

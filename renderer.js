@@ -35,8 +35,9 @@ const renderer = (function(){
     void main(void) {
         vec4 color = texture2D(u_texture, v_tex);
         if(color.a <= 0.0001) discard;
-        gl_FragColor = vec4((1.0 - v_dark * 0.5) * vec3(color), 1.0);
+        // gl_FragColor = vec4((1.0 - v_dark * 1.0) * vec3(color), 1.0);
         // gl_FragColor = vec4(vec3(1.0 - v_dark * v_dark * 1.0), 1.0);
+        gl_FragColor = vec4(v_dark * (1.0 - v_dark), (1.0 - v_dark) * (1.0 - v_dark), v_dark * v_dark, 1.0);
     }
     `);
     
@@ -59,7 +60,7 @@ const renderer = (function(){
     var texture = new Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
     texture.bind();
     
-    const camera = new Camera(gl, [0,0,3],[0,0], .01, 1000);
+    const camera = new Camera(gl, [0,20,0],[0,0], .01, 1000);
     
     function preDraw(currTime,elapsedTime){
         camera.recompute_projection(toRad(70));
