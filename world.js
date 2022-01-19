@@ -11,7 +11,12 @@ class Block{
     static DIRT = 2;
     static STONE = 3;
 
-    static transparent = new Set([0,28]);
+    static getTransparency(blockId){
+        return 1 - ({    //This object stores how much light passes through the block
+            0: 1,
+            28: 1,
+        }[blockId] || 0);
+    }
 }
 
 class Chunk{
@@ -47,16 +52,24 @@ class Chunk{
     updateAllLighting(log=true){
         const {WIDTH, HEIGHT, DEPTH, TOTAL_BLOCKS} = Chunk;
 
+        //Initialize all lighting to 0
         this.blockLight.fill(0);
 
+        //Priority queue containing lighting updates
         /** @type {PriorityQueue<[number,number,number,number]>*/
         let queue = new PriorityQueue((a,b) => a[3] > b[3]);
+
+        //For each column
         for(let x = 0; x < WIDTH; x++){
             for(let z = 0; z < DEPTH; z++){
+                //Set the light level of all blocks exposed to skylight to max
                 for(let y = HEIGHT - 2; y >= 0 && Block.transparent.has(this.getBlockIdAt(x,y,z)); y--){
-                    queue.push([x,y,z,255]);
+                    //Set the light level of the block
                     this.setBlockLightAt(x,y,z,255);
+                    //The light comes from the block above
                     this.setBlockLightFromAt(x,y,z,x,y + 1,z);
+                    //Add the update to the priority queue
+                    queue.push([x,y,z,255]);
                 }
                 
             }
@@ -64,17 +77,21 @@ class Chunk{
         
         let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 64;
         while(++i < MAX_UPDATES && !queue.empty()){
-            let [x,y,z,lvl] = queue.pop();
+            const [x,y,z,lvl] = queue.pop();
 
-            const C = 32;
-
-            for(let [dx,dy,dz,dl] of [[0,1,0,C],[0,-1,0,C],[1,0,0,C],[-1,0,0,C],[0,0,1,C],[0,0,-1,C]]){
-                let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
+            for(let [dx,dy,dz] of [[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]]){
+                const [xx,yy,zz] = [x + dx, y + dy, z + dz];
+                //Don't do lighting updates out of chunk (yet - will implement later)
                 if(!this._inRange(xx,yy,zz)) continue;
-                if(!Block.transparent.has(this.getBlockIdAt(xx,yy,zz))) continue;
+                //This is the light value that will be propogated to the block
+                const ll = lvl - Block.getTransparency(this.getBlockIdAt(xx,yy,zz));
+                //Don't update the light level if it is lower than the current level
                 if(ll > this.getBlockLightAt(xx,yy,zz))
+                    //Set light level of the block
                     this.setBlockLightAt(xx,yy,zz,ll),
+                    //Set where the light comes from
                     this.setBlockLightFromAt(xx,yy,zz,x,y,z),
+                    //Add this update to the priority queue
                     queue.push([xx,yy,zz,ll]);
             }
         }
@@ -87,33 +104,7 @@ class Chunk{
     
     /** @param {[number,number,number][]} positions */
     updateLighting(positions, log=true){
-        const {TOTAL_BLOCKS} = Chunk;
-
-        this.blockLight.fill(0);
-
-        /** @type {PriorityQueue<[number,number,number,number]>*/
-        let queue = new PriorityQueue((a,b) => a[3] > b[3]);
-        for(let [x,y,z] of positions){
-            this.setBlockLightAt(x,y,z,0);
-            if(this.getBlockIdAt(x,y - 1,z) == 0)
-                queue.push([x,y - 1,z,0]);
-        }
-        
-        let i = 0, MAX_UPDATES = TOTAL_BLOCKS * 64;
-        while(++i < MAX_UPDATES && !queue.empty()){
-            let [x,y,z,lvl] = queue.pop();
-
-            for(let [dx,dy,dz,dl] of [[0,1,0,16],[0,-1,0,0],[1,0,0,16],[-1,0,0,16],[0,0,1,16],[0,0,-1,16]]){
-                let [xx,yy,zz,ll] = [x + dx, y + dy, z + dz, lvl - dl];
-                if(this._inRange(xx,yy,zz) && Block.transparent.has(this.getBlockIdAt(xx,yy,zz)) && ll > this.getBlockLightAt(xx,yy,zz))
-                    this.setBlockLightAt(xx,yy,zz,ll),
-                    queue.push([xx,yy,zz,ll]);
-            }
-        }
-
-        if(log)
-            if(i == MAX_UPDATES) console.warn("Too many lighting updates!");
-            else console.log("Updated lighting in " + i + steps);
+        console.warn("This method is not implemented yet!");
     }
 
     getMesh(tx,ty,tz){
@@ -193,9 +184,8 @@ class Chunk{
                                 let l2 = this.getBlockLightAt(xx3,yy3,zz3) / 255;
                                 let vertexLight = (
                                     this._inRange(xxx,yyy,zzz) ?
-                                    l1 + l2 == 0 ? 0 : 
-                                    (l1 + l2 + lc + lf) / 4
-                                    : lf
+                                    (lc + lf + l1 + l2) / 4
+                                    : 1
                                 ) * 255;
                                 
 
@@ -230,6 +220,7 @@ class Chunk{
 
     getBlockIdAt(x,y,z){return this.blockIds[this._mapPos(x,y,z)]}
     setBlockIdAt(x, y, z, id) {this.blockIds[this._mapPos(x,y,z)] = id}
+    isBlockTransparentAt(x,y,z){return Block.transparent.has(this.getBlockIdAt(x,y,z))}
     getBlockDataAt(x,y,z){return this.blockData[this._mapPos(x,y,z)]}
     setBlockDataAt(x,y,z, data) {this.blockData[this._mapPos(x,y,z)] = data}
     getBlockLightAt(x,y,z){return this.blockLight[this._mapPos(x,y,z)]}
@@ -266,7 +257,7 @@ class Chunks{
     generateChunk(X,Z){
         let res = new Chunk();
 
-        const scale = 16, offset = 20, yScale = 4, perturb = 80, perturbScale = 40;
+        const scale = 16, offset = 10, yScale = 4, perturb = 20, perturbScale = 40;
 
         for(let x = 0; x < Chunk.WIDTH; x++){
             for(let z = 0; z < Chunk.WIDTH; z++){
@@ -302,7 +293,7 @@ class Chunks{
         this.chunks.get([x>>4,z>>4]).setBlockAt(x&15,y,z&15,id,light,data);
     }
     getMeshes(x,y,z){
-        const RENDER_DISTANCE = 5;
+        const RENDER_DISTANCE = 1;
         let data = new Array((RENDER_DISTANCE * 2 + 1) * (RENDER_DISTANCE * 2 + 1));
         let i = 0;
         const X = x >> 4, Z = z >> 4;

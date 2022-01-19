@@ -36,6 +36,7 @@ const renderer = (function(){
         vec4 color = texture2D(u_texture, v_tex);
         if(color.a <= 0.0001) discard;
         gl_FragColor = vec4((1.0 - v_dark * 0.5) * vec3(color), 1.0);
+        // gl_FragColor = vec4(vec3(1.0 - v_dark * v_dark * 1.0), 1.0);
     }
     `);
     
@@ -43,11 +44,18 @@ const renderer = (function(){
     var VAO = new VertexArrayObject(gl);
     VAO.bind();
     
-    var VBO = new Buffer(gl);
-    VBO.bind();
-    VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_pos"), "FLOAT", 3, 24, 0);
-    VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_tex"), "FLOAT", 2, 24, 12);
-    VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_dark"),"FLOAT", 1, 24, 20);
+    function makeMesh(){
+        return new Buffer(gl);
+    }
+    function bindMesh(VBO){
+        VBO.bind();
+        VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_pos"), "FLOAT", 3, 24, 0);
+        VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_tex"), "FLOAT", 2, 24, 12);
+        VAO.vertexAttribPointer(VBO, shaderProgram.getAttribLoc("a_dark"),"FLOAT", 1, 24, 20);
+    }
+
+    bindMesh(new Buffer(gl));
+
     var texture = new Texture(gl,atlasSrc || "https://raw.githubusercontent.com/Nengyi-Jonathan-Jiang/MC-clone/main/atlas.png");
     texture.bind();
     
@@ -58,11 +66,10 @@ const renderer = (function(){
         shaderProgram.uniformMat("u_mat", camera.get_matrix());
     
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
     }
-    function draw(currTime,elapsedTime){
-        camera.draw(shaderProgram, VAO, gl.TRIANGLES, 0, VBO.bytes / 24);
+    function draw(currTime,elapsedTime,numTriangles){
+        camera.draw(shaderProgram, VAO, gl.TRIANGLES, 0, numTriangles);
     };
 
-    return {VBO:VBO,preDraw:preDraw,draw:draw,camera:camera};
+    return {preDraw:preDraw,draw:draw,camera:camera, VAO:VAO,makeMesh:makeMesh,bindMesh:bindMesh};
 })();

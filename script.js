@@ -3,7 +3,7 @@ const {core:{math:{toDeg,toRad}}} = wgllib;
 var camera = renderer.camera;
 [camera.position,camera.rotation] = [[1.45, 2, 0.5], [1, 2]];
 
-var VBO = renderer.VBO;
+var VBO = renderer.makeMesh();
 
 // let positions = [
 //     [0,0,0, 1], [1,0,0, 2], [2,0,0, 2], [3,0,0, 2], 
@@ -43,6 +43,7 @@ let positions = [];
 let c = new Chunk(positions);
 
 let chunks = new Chunks();
+/** @type {Float32Array[]} */
 let meshes = chunks.getMeshes(0,0,0);
 console.log(meshes);
 
@@ -66,8 +67,9 @@ var control = new wgllib.gameUtil.FirstPersonController(renderer.camera);
 wgllib.createAnimation(function(currTime,elapsedTime){
     control.update(elapsedTime);
     renderer.preDraw();
+    renderer.bindMesh(VBO);
     for(let mesh of meshes){
         VBO.setData(mesh);
-        renderer.draw(currTime,elapsedTime);
+        renderer.draw(currTime,elapsedTime, VBO.bytes / 24);
     }
 });
