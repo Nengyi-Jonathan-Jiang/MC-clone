@@ -35,9 +35,9 @@ const renderer = (function(){
     void main(void) {
         vec4 color = texture2D(u_texture, v_tex);
         if(color.a <= 0.0001) discard;
-        // gl_FragColor = vec4((1.0 - v_dark * 1.0) * vec3(color), 1.0);
+        gl_FragColor = vec4((1.0 - v_dark * 1.0) * vec3(color), 1.0);
         // gl_FragColor = vec4(vec3(1.0 - v_dark * v_dark * 1.0), 1.0);
-        gl_FragColor = vec4(v_dark * (1.0 - v_dark), (1.0 - v_dark) * (1.0 - v_dark), v_dark * v_dark, 1.0);
+        // gl_FragColor = vec4(v_dark * (1.0 - v_dark), (1.0 - v_dark) * (1.0 - v_dark), v_dark * v_dark, 1.0);
     }
     `);
     

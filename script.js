@@ -27,7 +27,8 @@ var VBO = renderer.makeMesh();
 //     }
 // })
 
-noise.seed(Math.random());
+let seed = Math.random();
+noise.seed(seed);
 let positions = [];
 {
     let scale = 12, offset = 4, yScale = 4;
