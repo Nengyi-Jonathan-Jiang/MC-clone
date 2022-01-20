@@ -12,12 +12,16 @@ const renderer = (function(){
     attribute vec3 a_pos;
     attribute vec2 a_tex;
     attribute float a_dark;
+
+    attribute float l_00;
+    attribute float l_01;
+    attribute float l_10;
+    attribute float l_11;
     
     varying vec2 v_tex;
     varying float v_dark;
     
     uniform mat4 u_mat;
-    
     
     void main(){
         gl_Position = u_mat * vec4(a_pos, 1.0);
