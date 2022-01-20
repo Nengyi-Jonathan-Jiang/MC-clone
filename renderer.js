@@ -12,13 +12,23 @@ const renderer = (function(){
     attribute vec3 a_pos;
     attribute vec2 a_tex;
     attribute float a_dark;
-    
+
+    attribute 
+    attribute vec3 a_faceNormal;
+    attribute vec4 a_darkc;
+
     varying vec2 v_tex;
     varying float v_dark;
     
+    varying vec2 v_facePos;
+    varying vec4 v_darkc;
+    
     uniform mat4 u_mat;
     
-    
+    vec3 rotate(vec3 v, vec3 axis, float angle){
+        return axis * dot(axis, v) + cos(angle) * cross(cross(axis, v), axis) + sin(angle) * cross(axis, v);
+    }
+
     void main(){
         gl_Position = u_mat * vec4(a_pos, 1.0);
         v_tex = a_tex;
@@ -29,10 +39,25 @@ const renderer = (function(){
     
     varying vec2 v_tex;
     varying float v_dark;
+
+    varying vec2 v_facePos;
+    varying vec4 v_darkc;
     
+    float q_distance(vec2 a, vec2 b){
+        return max(abs(a.x - b.x), abs(a.y - b.y));
+    }
+
     uniform sampler2D u_texture;
     
     void main(void) {
+        vec4 d = vec4(
+            q_distance(v_facePos, vec2(0,0)),
+            q_distance(v_facePos, vec2(0,1)),
+            q_distance(v_facePos, vec2(1,0)),
+            q_distance(v_facePos, vec2(1,1))
+        );
+        float q_dark = dot(d, v_darkc) / (d.w + d.x + d.y + d.z);
+
         vec4 color = texture2D(u_texture, v_tex);
         if(color.a <= 0.0001) discard;
         gl_FragColor = vec4((1.0 - v_dark * 1.0) * vec3(color), 1.0);
