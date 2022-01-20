@@ -1,5 +1,5 @@
 const renderer = (function(){
-    const {gl, canvas} = wgllib.fullscreenCanvas(false);
+    const {gl} = wgllib.fullscreenCanvas(false);
     const {core:{math:{toRad,toDeg,m4},Camera,Buffer,VertexArrayObject,Program,Texture,events},createAnimation,gameUtil:{FirstPersonController,CubeMeshGenerator}} = wgllib;
     const {sin,cos,tan,asin,acos,atan,min,max,sqrt,pow,PI,random} = Math;
     events.init();
