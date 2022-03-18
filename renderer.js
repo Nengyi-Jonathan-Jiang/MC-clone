@@ -13,7 +13,6 @@ const renderer = (function(){
     attribute vec2 a_tex;
     attribute float a_dark;
 
-    attribute 
     attribute vec3 a_faceNormal;
     attribute vec4 a_darkc;
 
